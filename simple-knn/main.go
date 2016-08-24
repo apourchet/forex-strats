@@ -29,6 +29,10 @@ type Instance struct {
 	label  bool // Increase on target?
 }
 
+type Moment struct {
+	Value float64
+}
+
 var (
 	db             *ix_session.Session
 	cand           *candelizer.Candelizer
@@ -82,7 +86,12 @@ func (t *Trader) Start() error {
 					pred += intOfBool(ins.label)
 				}
 			}
+			if pred != 0 {
+				db.Write("moment", struct{ Prediction int }{pred}, c.CloseTime())
+			}
 		}
+		db.Write("moment", Moment{c.Close()}, c.CloseTime())
+		db.Write("moment", Moment{c.Open()}, c.OpenTime())
 		days += 1
 	}
 	log.Println(goods, bads)
@@ -110,9 +119,9 @@ func (t *Trader) OnData(record []string, format invt.DataFormat) {
 		return
 	}
 
-	cand.Step(c.Close)
+	cand.Step(c.Close, c.Timestamp)
 
-	if cand.Steps%24*60 == 0 {
+	if cand.Steps%(24*60) == 0 {
 		t.in <- cand
 	}
 }
